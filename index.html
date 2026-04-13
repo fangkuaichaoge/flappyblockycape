@@ -84,17 +84,18 @@ canvas{display:block;image-rendering:pixelated}
 
 <div class="info">
   <strong>使用说明：</strong><br>
-  1. 上传一张 64x32 的披风纹理图片（也可直接看默认演示）<br>
+  1. 上传披风纹理图片（支持32x32半披风或64x32完整披风，也可用默认演示）<br>
   2. 可选上传一张 64x64 或 128x128 的基础皮肤图片作为底图<br>
   3. 点击"转换映射"将披风数据映射到皮肤纹理<br>
   4. 点击"下载皮肤"保存映射后的皮肤文件<br>
   5. 该功能要求在方灵块韵里开启自定义披风选项<br>
+  <strong>32x32支持：</strong>上传32x32半披风时自动扩展到64x32左半区，右半区留透明<br>
   <strong>128x128支持：</strong>上传128x128皮肤时自动检测，皮肤原样保留不缩放，披风映射区域自动2x放大后合并<br>
-  <strong>映射数据来源：</strong>共41个映射区域
+  <strong>映射数据来源：</strong>由 cape1.obj (64x32) 与 cape2.obj (64x64) 的UV坐标自动提取，共41个映射区域
 </div>
 
 <script>
-// ========== 映射数据 ==========
+// ========== 映射数据（从OBJ解析） ==========
 var M = [
   {s:{x:1,y:1,w:6,h:7},d:{x:33,y:1,w:6,h:7},n:"左前披风"},
   {s:{x:0,y:1,w:1,h:7},d:{x:32,y:1,w:1,h:7},n:"左前侧"},
@@ -380,12 +381,33 @@ document.getElementById('capeFile').addEventListener('change', function(e) {
   var f = e.target.files[0]; if (!f) return;
   var img = new Image();
   img.onload = function() {
-    var c = document.createElement('canvas'); c.width = 64; c.height = 32;
-    c.getContext('2d').drawImage(img, 0, 0, 64, 32);
-    capeData = c.getContext('2d').getImageData(0, 0, 64, 32);
+    var c = document.createElement('canvas');
+    var cx = c.getContext('2d');
     resultFull = null;
+
+    if (img.width === 32 && img.height === 32) {
+      // 32x32披风：扩展到64x32，放在左半区（右半区留空/透明）
+      c.width = 64; c.height = 32;
+      cx.clearRect(0, 0, 64, 32);
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(img, 0, 0, 32, 32); // 放在左半区
+      capeData = cx.getImageData(0, 0, 64, 32);
+      setS('披风已加载: ' + f.name + ' (32x32 → 64x32左半区，右半区透明)');
+    } else if (img.width === 64 && img.height === 32) {
+      // 标准64x32：原样读取
+      c.width = 64; c.height = 32;
+      cx.drawImage(img, 0, 0);
+      capeData = cx.getImageData(0, 0, 64, 32);
+      setS('披风已加载: ' + f.name + ' (64x32标准尺寸)');
+    } else {
+      // 其他尺寸：缩放到64x32（向后兼容）
+      c.width = 64; c.height = 32;
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(img, 0, 0, 64, 32);
+      capeData = cx.getImageData(0, 0, 64, 32);
+      setS('披风已加载: ' + f.name + ' (' + img.width + 'x' + img.height + ' → 64x32缩放)');
+    }
     renderCape();
-    setS('披风已加载: ' + f.name + ' (' + img.width + 'x' + img.height + ')');
   };
   img.src = URL.createObjectURL(f);
 });
