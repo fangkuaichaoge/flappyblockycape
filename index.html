@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>披风纹理映射工具 - 64x32 → 64x64/128x128</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei",sans-serif;background:#1a1a2e;color:#eee;min-height:100vh;padding:20px}
+h1{text-align:center;color:#ffd700;font-size:26px;margin-bottom:6px;text-shadow:2px 2px 4px rgba(0,0,0,0.5)}
+.sub{text-align:center;color:#aaa;margin-bottom:16px;font-size:13px}
+.main{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;max-width:1300px;margin:0 auto}
+.panel{background:#16213e;border-radius:10px;padding:14px;border:1px solid #0f3460}
+.panel h2{text-align:center;font-size:15px;margin-bottom:10px;color:#e94560}
+.cw{position:relative;display:inline-block;border:2px solid #0f3460;border-radius:4px;overflow:hidden}
+canvas{display:block;image-rendering:pixelated}
+.ctrl{max-width:1300px;margin:16px auto 0;display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+.btn{padding:9px 22px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s;font-weight:bold}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.bp{background:#e94560;color:#fff}
+.bs{background:#0f9b58;color:#fff}
+.bi{background:#1976d2;color:#fff}
+.fl{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:#1976d2;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;transition:all .2s}
+.fl:hover{background:#1565c0;transform:translateY(-1px)}
+.fl input{display:none}
+.cb{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.cb input{cursor:pointer}
+.status{max-width:1300px;margin:10px auto 0;text-align:center;font-size:13px;color:#aaa;min-height:18px}
+.info{max-width:1300px;margin:16px auto 0;padding:14px;background:#16213e;border-radius:8px;border-left:4px solid #ffd700;font-size:12px;line-height:1.8}
+.info strong{color:#ffd700}
+.mtbl{max-width:1300px;margin:16px auto 0;overflow-x:auto}
+.mtbl table{width:100%;border-collapse:collapse;background:#16213e;border-radius:8px;overflow:hidden}
+.mtbl th,.mtbl td{padding:6px 10px;text-align:center;border:1px solid #0f3460;font-size:12px}
+.mtbl th{background:#0f3460;color:#ffd700}
+.legend{max-width:1300px;margin:12px auto 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.li{display:flex;align-items:center;gap:5px;padding:5px 10px;background:#16213e;border-radius:5px;border:1px solid #0f3460;font-size:12px}
+.lc{width:16px;height:16px;border-radius:2px;border:1px solid rgba(255,255,255,0.3)}
+.tip{position:absolute;background:rgba(0,0,0,0.9);color:#fff;padding:4px 8px;border-radius:3px;font-size:11px;pointer-events:none;z-index:100;white-space:nowrap;display:none}
+</style>
+</head>
+<body>
+<h1>披风纹理映射工具</h1>
+<p class="sub">方灵块韵 - 将 64x32 披风纹理映射到 64x64/128x128 皮肤纹理</p>
+
+<div class="main">
+  <div class="panel">
+    <h2>披风纹理 (64x32)</h2>
+    <div class="cw">
+      <canvas id="capeC" width="384" height="192"></canvas>
+      <div class="tip" id="capeTip"></div>
+    </div>
+    <div style="margin-top:8px;text-align:center">
+      <label class="fl"><span>上传披风图片</span><input type="file" id="capeFile" accept="image/*"></label>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;font-size:36px;color:#ffd700">&rarr;</div>
+  <div class="panel">
+    <h2>皮肤纹理 (<span id="skinSizeLabel">64x64</span>)</h2>
+    <div class="cw">
+      <canvas id="skinC" width="384" height="384"></canvas>
+      <div class="tip" id="skinTip"></div>
+    </div>
+    <div style="margin-top:8px;text-align:center">
+      <label class="fl"><span>上传基础皮肤（可选）</span><input type="file" id="skinFile" accept="image/*"></label>
+    </div>
+  </div>
+</div>
+
+<div class="ctrl">
+  <button class="btn bp" onclick="convert()">转换映射</button>
+  <button class="btn bs" onclick="download()">下载皮肤</button>
+  <button class="btn bi" onclick="toggleGrid()">网格显隐</button>
+  <label class="cb"><input type="checkbox" id="transBg" onchange="render()" checked> 透明背景</label>
+</div>
+<div class="status" id="status">请上传披风纹理图片，或使用默认演示图案</div>
+<div class="legend" id="legend"></div>
+
+<div class="mtbl">
+  <table>
+    <thead><tr><th>#</th><th>名称</th><th>披风坐标 (64x32)</th><th>尺寸</th><th>皮肤坐标 (64x64)</th><th>尺寸</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="info">
+  <strong>使用说明：</strong><br>
+  1. 上传一张 64x32 的披风纹理图片（也可直接看默认演示）<br>
+  2. 可选上传一张 64x64 或 128x128 的基础皮肤图片作为底图<br>
+  3. 点击"转换映射"将披风数据映射到皮肤纹理<br>
+  4. 点击"下载皮肤"保存映射后的皮肤文件<br>
+  5. 该功能要求在方灵块韵里开启自定义披风选项<br>
+  <strong>128x128支持：</strong>上传128x128皮肤时自动检测，皮肤原样保留不缩放，披风映射区域自动2x放大后合并<br>
+  <strong>映射数据来源：</strong>由 cape1.obj (64x32) 与 cape2.obj (64x64) 的UV坐标自动提取，共41个映射区域
+</div>
+
+<script>
+// ========== 映射数据（从OBJ解析） ==========
+var M = [
+  {s:{x:1,y:1,w:6,h:7},d:{x:33,y:1,w:6,h:7},n:"左前披风"},
+  {s:{x:0,y:1,w:1,h:7},d:{x:32,y:1,w:1,h:7},n:"左前侧"},
+  {s:{x:16,y:1,w:6,h:7},d:{x:56,y:35,w:6,h:7},n:"右后披风"},
+  {s:{x:7,y:1,w:1,h:7},d:{x:39,y:1,w:1,h:7},n:"左前边"},
+  {s:{x:15,y:1,w:1,h:7},d:{x:63,y:1,w:1,h:7},n:"右后边"},
+  {s:{x:8,y:1,w:3,h:7},d:{x:56,y:1,w:3,h:7},n:"中前披风"},
+  {s:{x:12,y:1,w:3,h:7},d:{x:60,y:1,w:3,h:7},n:"中后披风"},
+  {s:{x:11,y:1,w:1,h:7},d:{x:59,y:1,w:1,h:7},n:"中侧"},
+  {s:{x:1,y:0,w:6,h:1},d:{x:33,y:0,w:6,h:1},n:"左前顶"},
+  {s:{x:7,y:0,w:1,h:1},d:{x:39,y:0,w:1,h:1},n:"左前顶边"},
+  {s:{x:8,y:0,w:3,h:1},d:{x:56,y:0,w:3,h:1},n:"中前顶"},
+  {s:{x:11,y:0,w:2,h:1},d:{x:59,y:0,w:2,h:1},n:"中顶"},
+  {s:{x:13,y:0,w:3,h:1},d:{x:61,y:0,w:3,h:1},n:"中后顶"},
+  {s:{x:16,y:0,w:1,h:1},d:{x:56,y:34,w:1,h:1},n:"右后顶角"},
+  {s:{x:17,y:0,w:1,h:1},d:{x:57,y:34,w:1,h:1},n:"右后顶角2"},
+  {s:{x:18,y:0,w:3,h:1},d:{x:58,y:34,w:3,h:1},n:"右后顶边"},
+  {s:{x:1,y:8,w:6,h:1},d:{x:57,y:16,w:6,h:1},n:"左领上"},
+  {s:{x:0,y:8,w:1,h:1},d:{x:56,y:16,w:1,h:1},n:"左领上侧"},
+  {s:{x:7,y:8,w:1,h:1},d:{x:63,y:16,w:1,h:1},n:"左领上边"},
+  {s:{x:16,y:8,w:6,h:1},d:{x:56,y:42,w:6,h:1},n:"右领上"},
+  {s:{x:15,y:8,w:1,h:1},d:{x:63,y:25,w:1,h:1},n:"右领边"},
+  {s:{x:8,y:8,w:3,h:1},d:{x:56,y:25,w:3,h:1},n:"中领上"},
+  {s:{x:12,y:8,w:3,h:1},d:{x:60,y:25,w:3,h:1},n:"中领下"},
+  {s:{x:11,y:8,w:1,h:1},d:{x:59,y:25,w:1,h:1},n:"中领侧"},
+  {s:{x:1,y:9,w:2,h:8},d:{x:57,y:17,w:2,h:8},n:"左领"},
+  {s:{x:0,y:9,w:1,h:8},d:{x:56,y:17,w:1,h:8},n:"左领侧"},
+  {s:{x:3,y:9,w:3,h:5},d:{x:59,y:17,w:3,h:5},n:"左领中"},
+  {s:{x:6,y:9,w:1,h:5},d:{x:62,y:17,w:1,h:5},n:"左领边"},
+  {s:{x:7,y:9,w:1,h:8},d:{x:63,y:17,w:1,h:8},n:"左领边2"},
+  {s:{x:8,y:9,w:3,h:8},d:{x:56,y:26,w:3,h:8},n:"中领"},
+  {s:{x:12,y:9,w:3,h:8},d:{x:60,y:26,w:3,h:8},n:"中领后"},
+  {s:{x:11,y:9,w:1,h:8},d:{x:59,y:26,w:1,h:8},n:"中领侧2"},
+  {s:{x:15,y:9,w:1,h:8},d:{x:63,y:26,w:1,h:8},n:"右领边"},
+  {s:{x:17,y:9,w:3,h:5},d:{x:57,y:43,w:3,h:5},n:"右领中"},
+  {s:{x:16,y:9,w:1,h:5},d:{x:56,y:43,w:1,h:5},n:"右领侧2"},
+  {s:{x:20,y:9,w:2,h:8},d:{x:60,y:43,w:2,h:8},n:"右领"},
+  {s:{x:3,y:14,w:3,h:3},d:{x:59,y:22,w:3,h:3},n:"左领底"},
+  {s:{x:6,y:14,w:1,h:3},d:{x:62,y:22,w:1,h:3},n:"左领底边"},
+  {s:{x:0,y:14,w:1,h:3},d:{x:56,y:22,w:1,h:3},n:"左领底侧"},
+  {s:{x:17,y:14,w:3,h:3},d:{x:53,y:32,w:3,h:3},n:"右领底"},
+  {s:{x:16,y:14,w:1,h:3},d:{x:52,y:32,w:1,h:3},n:"右领底侧"}
+];
+
+var COLORS = [
+  "#e94560","#1976d2","#0f9b58","#f57c00","#9c27b0","#00bcd4",
+  "#ff5722","#8bc34a","#673ab7","#ff9800","#03a9f4","#cddc39",
+  "#e91e63","#3f51b5","#4caf50","#ffc107","#795548","#607d8b",
+  "#f44336","#2196f3","#8bc34a","#ff9800","#9c27b0","#00bcd4",
+  "#ff5722","#4caf50","#673ab7","#ffc107","#03a9f4","#cddc39",
+  "#e91e63","#3f51b5","#8bc34a","#ff9800","#9c27b0","#00bcd4",
+  "#f44336","#2196f3","#4caf50","#ffc107","#795548"
+];
+
+// ========== 状态变量 ==========
+var CS = 6;                // 披风预览缩放倍数 (64*6=384)
+var SS = 6;                // 皮肤预览缩放倍数 (64*6=384)
+var showGrid = true;
+var capeData = null;       // 披风 ImageData (始终64x32)
+var skinImg = null;        // 皮肤原始 Image 对象（保留原图用于绘制）
+var skinData = null;       // 皮肤原始 ImageData (64x64 或 128x128)
+var resultFull = null;     // 映射后的完整 ImageData (与皮肤同尺寸)
+var skinScale = 1;         // 1=64x64皮肤, 2=128x128皮肤
+var skinW = 64, skinH = 64;
+
+var capeCv = document.getElementById('capeC');
+var capeCx = capeCv.getContext('2d');
+var skinCv = document.getElementById('skinC');
+var skinCx = skinCv.getContext('2d');
+
+// ========== 辅助：ImageData绘制到canvas ==========
+function drawImageData(ctx, imgData, dw, dh) {
+  var tc = document.createElement('canvas');
+  tc.width = imgData.width;
+  tc.height = imgData.height;
+  tc.getContext('2d').putImageData(imgData, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tc, 0, 0, dw, dh);
+}
+
+// ========== 演示数据 ==========
+function demoCape() {
+  var c = document.createElement('canvas'); c.width = 64; c.height = 32;
+  var x = c.getContext('2d');
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i];
+    x.fillStyle = COLORS[i] + '66';
+    x.fillRect(m.s.x, m.s.y, m.s.w, m.s.h);
+    x.strokeStyle = COLORS[i]; x.lineWidth = 0.5;
+    x.strokeRect(m.s.x, m.s.y, m.s.w, m.s.h);
+  }
+  return x.getImageData(0, 0, 64, 32);
+}
+
+// ========== 渲染 ==========
+function render() {
+  document.getElementById('skinSizeLabel').textContent = skinW + 'x' + skinH;
+  renderCape();
+  renderSkin();
+  updateLegend();
+  updateTable();
+}
+
+function renderCape() {
+  capeCx.clearRect(0, 0, 384, 192);
+  var isT = document.getElementById('transBg').checked;
+  if (!isT) {
+    capeCx.fillStyle = '#2a2a4a';
+    capeCx.fillRect(0, 0, 384, 192);
+  }
+  if (capeData) {
+    drawImageData(capeCx, capeData, 384, 192);
+  }
+  // 映射区域高亮
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i], c = COLORS[i];
+    capeCx.fillStyle = c + '44';
+    capeCx.fillRect(m.s.x * CS, m.s.y * CS, m.s.w * CS, m.s.h * CS);
+    capeCx.strokeStyle = c; capeCx.lineWidth = 1.5;
+    capeCx.strokeRect(m.s.x * CS, m.s.y * CS, m.s.w * CS, m.s.h * CS);
+    if (m.s.w * m.s.h > 2) {
+      capeCx.font = 'bold 9px sans-serif';
+      capeCx.textAlign = 'center'; capeCx.textBaseline = 'middle';
+      var cx = (m.s.x + m.s.w / 2) * CS, cy = (m.s.y + m.s.h / 2) * CS;
+      var tw = capeCx.measureText(m.n).width + 4;
+      capeCx.fillStyle = 'rgba(0,0,0,0.75)';
+      capeCx.fillRect(cx - tw / 2, cy - 5, tw, 11);
+      capeCx.fillStyle = c;
+      capeCx.fillText(m.n, cx, cy);
+    }
+  }
+  // 网格
+  if (showGrid) {
+    capeCx.strokeStyle = 'rgba(255,255,255,0.07)'; capeCx.lineWidth = 0.5;
+    for (var x = 0; x <= 64; x++) { capeCx.beginPath(); capeCx.moveTo(x * CS, 0); capeCx.lineTo(x * CS, 192); capeCx.stroke(); }
+    for (var y = 0; y <= 32; y++) { capeCx.beginPath(); capeCx.moveTo(0, y * CS); capeCx.lineTo(384, y * CS); capeCx.stroke(); }
+  }
+  // 坐标
+  capeCx.font = '8px sans-serif'; capeCx.fillStyle = 'rgba(255,255,255,0.35)';
+  capeCx.textAlign = 'center';
+  for (var x = 0; x <= 64; x += 8) capeCx.fillText(x, x * CS, 192 + 10);
+  capeCx.textAlign = 'right'; capeCx.textBaseline = 'middle';
+  for (var y = 0; y <= 32; y += 8) capeCx.fillText(y, -3, y * CS);
+}
+
+function renderSkin() {
+  skinCx.clearRect(0, 0, 384, 384);
+  var isT = document.getElementById('transBg').checked;
+  if (!isT) {
+    skinCx.fillStyle = '#2a2a4a';
+    skinCx.fillRect(0, 0, 384, 384);
+  }
+  // 绘制皮肤：优先用转换结果，否则用原始皮肤
+  var dd = resultFull || skinData;
+  if (dd) {
+    drawImageData(skinCx, dd, 384, 384);
+  }
+  // 映射区域高亮
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i], c = COLORS[i];
+    skinCx.fillStyle = c + '44';
+    skinCx.fillRect(m.d.x * SS, m.d.y * SS, m.d.w * SS, m.d.h * SS);
+    skinCx.strokeStyle = c; skinCx.lineWidth = 1.5;
+    skinCx.strokeRect(m.d.x * SS, m.d.y * SS, m.d.w * SS, m.d.h * SS);
+    if (m.d.w * m.d.h > 2) {
+      skinCx.font = 'bold 9px sans-serif';
+      skinCx.textAlign = 'center'; skinCx.textBaseline = 'middle';
+      var cx = (m.d.x + m.d.w / 2) * SS, cy = (m.d.y + m.d.h / 2) * SS;
+      var tw = skinCx.measureText(m.n).width + 4;
+      skinCx.fillStyle = 'rgba(0,0,0,0.75)';
+      skinCx.fillRect(cx - tw / 2, cy - 5, tw, 11);
+      skinCx.fillStyle = c;
+      skinCx.fillText(m.n, cx, cy);
+    }
+  }
+  // 网格
+  if (showGrid) {
+    skinCx.strokeStyle = 'rgba(255,255,255,0.05)'; skinCx.lineWidth = 0.5;
+    for (var x = 0; x <= 64; x++) { skinCx.beginPath(); skinCx.moveTo(x * SS, 0); skinCx.lineTo(x * SS, 384); skinCx.stroke(); }
+    for (var y = 0; y <= 64; y++) { skinCx.beginPath(); skinCx.moveTo(0, y * SS); skinCx.lineTo(384, y * SS); skinCx.stroke(); }
+  }
+  // 坐标
+  skinCx.font = '8px sans-serif'; skinCx.fillStyle = 'rgba(255,255,255,0.35)';
+  skinCx.textAlign = 'center';
+  for (var x = 0; x <= 64; x += 8) skinCx.fillText(x, x * SS, 384 + 10);
+  skinCx.textAlign = 'right'; skinCx.textBaseline = 'middle';
+  for (var y = 0; y <= 64; y += 8) skinCx.fillText(y, -3, y * SS);
+}
+
+// ========== 图例 & 表格 ==========
+function updateLegend() {
+  var el = document.getElementById('legend'); el.innerHTML = '';
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i];
+    if (m.s.w * m.s.h <= 2) continue;
+    var d = document.createElement('div'); d.className = 'li';
+    d.innerHTML = '<div class="lc" style="background:' + COLORS[i] + '"></div><span>' + m.n + ' (' + m.s.w + 'x' + m.s.h + ')</span>';
+    el.appendChild(d);
+  }
+}
+
+function updateTable() {
+  var tb = document.getElementById('tbody'); tb.innerHTML = '';
+  for (var i = 0; i < M.length; i++) {
+    var m = M[i];
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td style="color:' + COLORS[i] + '">' + (i + 1) + '</td><td>' + m.n + '</td>' +
+      '<td>(' + m.s.x + ', ' + m.s.y + ')</td><td>' + m.s.w + 'x' + m.s.h + '</td>' +
+      '<td>(' + m.d.x + ', ' + m.d.y + ')</td><td>' + m.d.w + 'x' + m.d.h + '</td>';
+    tb.appendChild(tr);
+  }
+}
+
+// ========== 核心：转换映射 ==========
+function convert() {
+  if (!capeData) { setS('请先上传披风纹理图片！'); return; }
+
+  // 在皮肤原始尺寸画布上操作
+  var rc = document.createElement('canvas');
+  rc.width = skinW; rc.height = skinH;
+  var rx = rc.getContext('2d');
+
+  // 先把原始皮肤画上去
+  if (skinData) {
+    drawImageData(rx, skinData, skinW, skinH);
+  }
+
+  // 取出像素数据
+  var res = rx.getImageData(0, 0, skinW, skinH);
+  var rd = res.data;
+  var cd = capeData.data;
+  var sc = skinScale; // 1 或 2
+
+  // 逐区域逐像素映射
+  for (var mi = 0; mi < M.length; mi++) {
+    var m = M[mi];
+    for (var dy = 0; dy < m.s.h; dy++) {
+      for (var dx = 0; dx < m.s.w; dx++) {
+        var sx = m.s.x + dx, sy = m.s.y + dy;
+        if (sx >= 64 || sy >= 32) continue;
+        var si = (sy * 64 + sx) * 4;
+        if (cd[si + 3] === 0) continue; // 跳过透明像素
+        var r = cd[si], g = cd[si + 1], b = cd[si + 2], a = cd[si + 3];
+        // 目标坐标 x scale，每个披风像素填充 sc*sc 的块
+        var bx = (m.d.x + dx) * sc;
+        var by = (m.d.y + dy) * sc;
+        for (var py = 0; py < sc; py++) {
+          for (var px = 0; px < sc; px++) {
+            var tx = bx + px, ty = by + py;
+            if (tx >= skinW || ty >= skinH) continue;
+            var di = (ty * skinW + tx) * 4;
+            rd[di] = r; rd[di + 1] = g; rd[di + 2] = b; rd[di + 3] = a;
+          }
+        }
+      }
+    }
+  }
+
+  resultFull = res;
+  renderSkin();
+  setS('映射转换完成！输出尺寸: ' + skinW + 'x' + skinH);
+}
+
+// ========== 下载 ==========
+function download() {
+  if (!resultFull) { setS('请先进行映射转换！'); return; }
+  var c = document.createElement('canvas');
+  c.width = skinW; c.height = skinH;
+  c.getContext('2d').putImageData(resultFull, 0, 0);
+  var a = document.createElement('a');
+  a.download = 'cape_skin_' + skinW + 'x' + skinH + '.png';
+  a.href = c.toDataURL('image/png');
+  a.click();
+  setS('皮肤文件已下载（' + skinW + 'x' + skinH + '）！');
+}
+
+// ========== 工具函数 ==========
+function toggleGrid() { showGrid = !showGrid; render(); }
+function setS(m) { document.getElementById('status').textContent = m; }
+
+// ========== 文件上传：披风 ==========
+document.getElementById('capeFile').addEventListener('change', function(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var img = new Image();
+  img.onload = function() {
+    var c = document.createElement('canvas'); c.width = 64; c.height = 32;
+    c.getContext('2d').drawImage(img, 0, 0, 64, 32);
+    capeData = c.getContext('2d').getImageData(0, 0, 64, 32);
+    resultFull = null;
+    renderCape();
+    setS('披风已加载: ' + f.name + ' (' + img.width + 'x' + img.height + ')');
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+// ========== 文件上传：皮肤 ==========
+document.getElementById('skinFile').addEventListener('change', function(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var img = new Image();
+  img.onload = function() {
+    var w = img.width, h = img.height;
+    resultFull = null;
+
+    if (w === 128 && h === 128) {
+      // 128x128：原样保留
+      skinScale = 2; skinW = 128; skinH = 128;
+      var c = document.createElement('canvas'); c.width = 128; c.height = 128;
+      c.getContext('2d').drawImage(img, 0, 0);
+      skinData = c.getContext('2d').getImageData(0, 0, 128, 128);
+      setS('基础皮肤已加载: ' + f.name + ' (128x128，披风映射自动2x放大合并)');
+    } else {
+      // 64x64 或其他尺寸 -> 统一按64x64处理
+      skinScale = 1; skinW = 64; skinH = 64;
+      var c = document.createElement('canvas'); c.width = 64; c.height = 64;
+      var cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(img, 0, 0, 64, 64);
+      skinData = cx.getImageData(0, 0, 64, 64);
+      if (w === 64 && h === 64) {
+        setS('基础皮肤已加载: ' + f.name + ' (64x64)');
+      } else {
+        setS('基础皮肤已加载: ' + f.name + ' (' + w + 'x' + h + ' -> 64x64)');
+      }
+    }
+    render();
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+// ========== 鼠标悬停提示 ==========
+function setupTip(cvId, tipId, texW, texH, scale) {
+  var cv = document.getElementById(cvId), tip = document.getElementById(tipId);
+  cv.addEventListener('mousemove', function(e) {
+    var r = cv.getBoundingClientRect();
+    var mx = e.clientX - r.left, my = e.clientY - r.top;
+    var px = Math.floor(mx / scale), py = Math.floor(my / scale);
+    if (px < 0 || py < 0 || px >= texW || py >= texH) { tip.style.display = 'none'; return; }
+    var region = null;
+    var key = cvId === 'capeC' ? 's' : 'd';
+    for (var i = 0; i < M.length; i++) {
+      var r2 = M[i][key];
+      if (px >= r2.x && px < r2.x + r2.w && py >= r2.y && py < r2.y + r2.h) region = M[i];
+    }
+    var t = '(' + px + ', ' + py + ')';
+    if (region) t += ' | ' + region.n;
+    tip.textContent = t; tip.style.display = 'block';
+    tip.style.left = (mx + 12) + 'px'; tip.style.top = (my - 8) + 'px';
+  });
+  cv.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+}
+setupTip('capeC', 'capeTip', 64, 32, CS);
+setupTip('skinC', 'skinTip', 64, 64, SS);
+
+// ========== 初始化 ==========
+capeData = demoCape();
+skinData = null;
+render();
+setS('已加载演示图案。请上传披风纹理图片进行映射转换。');
+</script>
+</body>
+</html>
