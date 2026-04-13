@@ -103,53 +103,57 @@ canvas{display:block;image-rendering:pixelated}
   5. 该功能要求在方灵块韵里开启自定义披风选项<br>
   <strong>32x32支持：</strong>上传32x32半披风时自动扩展到64x32左半区，右半区留透明<br>
   <strong>128x128支持：</strong>上传128x128皮肤时自动检测，皮肤原样保留不缩放，披风映射区域自动2x放大后合并<br>
-  <strong>映射数据来源：</strong>由 cape1.obj (64x32) 与 cape2.obj (64x64) 的UV坐标自动提取，共41个映射区域
+  <strong>映射数据来源：</strong>由 cape1.obj (64x32) 与 cape2.obj (64x64) 的UV坐标提取，已按偏移合并为14个矩形映射区域
 </div>
 
 <script>
-// ========== 映射数据（从OBJ解析） ==========
+// ========== 映射数据（按偏移合并后，约15个矩形） ==========
 var M = [
-  {s:{x:1,y:1,w:6,h:7},d:{x:33,y:1,w:6,h:7},n:"左前披风"},
-  {s:{x:0,y:1,w:1,h:7},d:{x:32,y:1,w:1,h:7},n:"左前侧"},
-  {s:{x:16,y:1,w:6,h:7},d:{x:56,y:35,w:6,h:7},n:"右后披风"},
-  {s:{x:7,y:1,w:1,h:7},d:{x:39,y:1,w:1,h:7},n:"左前边"},
-  {s:{x:15,y:1,w:1,h:7},d:{x:63,y:1,w:1,h:7},n:"右后边"},
-  {s:{x:8,y:1,w:3,h:7},d:{x:56,y:1,w:3,h:7},n:"中前披风"},
-  {s:{x:12,y:1,w:3,h:7},d:{x:60,y:1,w:3,h:7},n:"中后披风"},
-  {s:{x:11,y:1,w:1,h:7},d:{x:59,y:1,w:1,h:7},n:"中侧"},
-  {s:{x:1,y:0,w:6,h:1},d:{x:33,y:0,w:6,h:1},n:"左前顶"},
-  {s:{x:7,y:0,w:1,h:1},d:{x:39,y:0,w:1,h:1},n:"左前顶边"},
-  {s:{x:8,y:0,w:3,h:1},d:{x:56,y:0,w:3,h:1},n:"中前顶"},
-  {s:{x:11,y:0,w:2,h:1},d:{x:59,y:0,w:2,h:1},n:"中顶"},
-  {s:{x:13,y:0,w:3,h:1},d:{x:61,y:0,w:3,h:1},n:"中后顶"},
-  {s:{x:16,y:0,w:1,h:1},d:{x:56,y:34,w:1,h:1},n:"右后顶角"},
-  {s:{x:17,y:0,w:1,h:1},d:{x:57,y:34,w:1,h:1},n:"右后顶角2"},
-  {s:{x:18,y:0,w:3,h:1},d:{x:58,y:34,w:3,h:1},n:"右后顶边"},
-  {s:{x:1,y:8,w:6,h:1},d:{x:57,y:16,w:6,h:1},n:"左领上"},
-  {s:{x:0,y:8,w:1,h:1},d:{x:56,y:16,w:1,h:1},n:"左领上侧"},
-  {s:{x:7,y:8,w:1,h:1},d:{x:63,y:16,w:1,h:1},n:"左领上边"},
-  {s:{x:16,y:8,w:6,h:1},d:{x:56,y:42,w:6,h:1},n:"右领上"},
-  {s:{x:15,y:8,w:1,h:1},d:{x:63,y:25,w:1,h:1},n:"右领边"},
-  {s:{x:8,y:8,w:3,h:1},d:{x:56,y:25,w:3,h:1},n:"中领上"},
-  {s:{x:12,y:8,w:3,h:1},d:{x:60,y:25,w:3,h:1},n:"中领下"},
-  {s:{x:11,y:8,w:1,h:1},d:{x:59,y:25,w:1,h:1},n:"中领侧"},
-  {s:{x:1,y:9,w:2,h:8},d:{x:57,y:17,w:2,h:8},n:"左领"},
-  {s:{x:0,y:9,w:1,h:8},d:{x:56,y:17,w:1,h:8},n:"左领侧"},
-  {s:{x:3,y:9,w:3,h:5},d:{x:59,y:17,w:3,h:5},n:"左领中"},
-  {s:{x:6,y:9,w:1,h:5},d:{x:62,y:17,w:1,h:5},n:"左领边"},
-  {s:{x:7,y:9,w:1,h:8},d:{x:63,y:17,w:1,h:8},n:"左领边2"},
-  {s:{x:8,y:9,w:3,h:8},d:{x:56,y:26,w:3,h:8},n:"中领"},
-  {s:{x:12,y:9,w:3,h:8},d:{x:60,y:26,w:3,h:8},n:"中领后"},
-  {s:{x:11,y:9,w:1,h:8},d:{x:59,y:26,w:1,h:8},n:"中领侧2"},
-  {s:{x:15,y:9,w:1,h:8},d:{x:63,y:26,w:1,h:8},n:"右领边"},
-  {s:{x:17,y:9,w:3,h:5},d:{x:57,y:43,w:3,h:5},n:"右领中"},
-  {s:{x:16,y:9,w:1,h:5},d:{x:56,y:43,w:1,h:5},n:"右领侧2"},
-  {s:{x:20,y:9,w:2,h:8},d:{x:60,y:43,w:2,h:8},n:"右领"},
-  {s:{x:3,y:14,w:3,h:3},d:{x:59,y:22,w:3,h:3},n:"左领底"},
-  {s:{x:6,y:14,w:1,h:3},d:{x:62,y:22,w:1,h:3},n:"左领底边"},
-  {s:{x:0,y:14,w:1,h:3},d:{x:56,y:22,w:1,h:3},n:"左领底侧"},
-  {s:{x:17,y:14,w:3,h:3},d:{x:53,y:32,w:3,h:3},n:"右领底"},
-  {s:{x:16,y:14,w:1,h:3},d:{x:52,y:32,w:1,h:3},n:"右领底侧"}
+  // ===== y=0-7 上半区 =====
+  // 左前披风 (dx=32, dy=0) x:0-7
+  {s:{x:0,y:0,w:8,h:8},d:{x:32,y:0,w:8,h:8},n:"左前披风"},
+  
+  // 右后披风 (dx=40, dy=34) x:16-21
+  {s:{x:16,y:0,w:6,h:8},d:{x:56,y:34,w:6,h:8},n:"右后披风"},
+  
+  // 中前披风 (dx=48, dy=0) x:8-10
+  {s:{x:8,y:0,w:3,h:8},d:{x:56,y:0,w:3,h:8},n:"中前披风"},
+  
+  // 中后披风 (dx=48, dy=0) x:11-15
+  {s:{x:11,y:0,w:5,h:8},d:{x:59,y:0,w:5,h:8},n:"中后披风"},
+  
+  // ===== y=8-12 中间领口上部 =====
+  // 左领上 (dx=56, dy=8) x:0-7
+  {s:{x:0,y:8,w:8,h:5},d:{x:56,y:16,w:8,h:5},n:"左领上"},
+  
+  // 中领上 (dx=48, dy=17) x:8-15
+  {s:{x:8,y:8,w:8,h:5},d:{x:56,y:25,w:8,h:5},n:"中领上"},
+  
+  // 右领上 (dx=40, dy=34) x:16-21
+  {s:{x:16,y:8,w:6,h:5},d:{x:56,y:42,w:6,h:5},n:"右领上"},
+  
+  // ===== y=13 领口过渡行 =====
+  // 左领中 (dx=56, dy=8) x:0-7
+  {s:{x:0,y:13,w:8,h:1},d:{x:56,y:21,w:8,h:1},n:"左领中"},
+  
+  // 中领中 (dx=48, dy=17) x:8-15
+  {s:{x:8,y:13,w:8,h:1},d:{x:56,y:30,w:8,h:1},n:"中领中"},
+  
+  // 右领中 (dx=40, dy=34) x:16-21
+  {s:{x:16,y:13,w:6,h:1},d:{x:56,y:47,w:6,h:1},n:"右领中"},
+  
+  // ===== y=14-16 下部领口 =====
+  // 左领下 (dx=56, dy=8) x:0-7
+  {s:{x:0,y:14,w:8,h:3},d:{x:56,y:22,w:8,h:3},n:"左领下"},
+  
+  // 中领下 (dx=48, dy=17) x:8-15
+  {s:{x:8,y:14,w:8,h:3},d:{x:56,y:31,w:8,h:3},n:"中领下"},
+  
+  // 右领下 (dx=36, dy=18) x:16-19
+  {s:{x:16,y:14,w:4,h:3},d:{x:52,y:32,w:4,h:3},n:"右领下"},
+  
+  // 右领右下 (dx=40, dy=34) x:20-21
+  {s:{x:20,y:14,w:2,h:3},d:{x:60,y:48,w:2,h:3},n:"右领右下"}
 ];
 
 var COLORS = [
@@ -228,7 +232,7 @@ function renderCape() {
     capeCx.fillRect(m.s.x * CS, m.s.y * CS, m.s.w * CS, m.s.h * CS);
     capeCx.strokeStyle = c; capeCx.lineWidth = 1.5;
     capeCx.strokeRect(m.s.x * CS, m.s.y * CS, m.s.w * CS, m.s.h * CS);
-    if (m.s.w * m.s.h > 2) {
+    if (m.s.w * m.s.h >= 20) {
       capeCx.font = 'bold 9px sans-serif';
       capeCx.textAlign = 'center'; capeCx.textBaseline = 'middle';
       var cx = (m.s.x + m.s.w / 2) * CS, cy = (m.s.y + m.s.h / 2) * CS;
@@ -272,7 +276,7 @@ function renderSkin() {
     skinCx.fillRect(m.d.x * SS, m.d.y * SS, m.d.w * SS, m.d.h * SS);
     skinCx.strokeStyle = c; skinCx.lineWidth = 1.5;
     skinCx.strokeRect(m.d.x * SS, m.d.y * SS, m.d.w * SS, m.d.h * SS);
-    if (m.d.w * m.d.h > 2) {
+    if (m.d.w * m.d.h >= 20) {
       skinCx.font = 'bold 9px sans-serif';
       skinCx.textAlign = 'center'; skinCx.textBaseline = 'middle';
       var cx = (m.d.x + m.d.w / 2) * SS, cy = (m.d.y + m.d.h / 2) * SS;
@@ -302,7 +306,6 @@ function updateLegend() {
   var el = document.getElementById('legend'); el.innerHTML = '';
   for (var i = 0; i < M.length; i++) {
     var m = M[i];
-    if (m.s.w * m.s.h <= 2) continue;
     var d = document.createElement('div'); d.className = 'li';
     d.innerHTML = '<div class="lc" style="background:' + COLORS[i] + '"></div><span>' + m.n + ' (' + m.s.w + 'x' + m.s.h + ')</span>';
     el.appendChild(d);
