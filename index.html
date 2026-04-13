@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>披风纹理映射工具 - 64x32 → 64x64/128x128</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -36,6 +36,18 @@ canvas{display:block;image-rendering:pixelated}
 .li{display:flex;align-items:center;gap:5px;padding:5px 10px;background:#16213e;border-radius:5px;border:1px solid #0f3460;font-size:12px}
 .lc{width:16px;height:16px;border-radius:2px;border:1px solid rgba(255,255,255,0.3)}
 .tip{position:absolute;background:rgba(0,0,0,0.9);color:#fff;padding:4px 8px;border-radius:3px;font-size:11px;pointer-events:none;z-index:100;white-space:nowrap;display:none}
+@media (max-width: 900px) {
+  .main{flex-direction:column;align-items:center}
+  .panel{max-width:100%;width:100%}
+  .cw{width:100%;max-width:384px}
+  .cw canvas{width:100%;height:auto}
+  .ctrl{flex-direction:column;align-items:center}
+  .btn,.fl{width:100%;max-width:280px;text-align:center;justify-content:center}
+  .mtbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .info{margin:12px;padding:10px;font-size:11px}
+  h1{font-size:22px}
+  .sub{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -49,8 +61,8 @@ canvas{display:block;image-rendering:pixelated}
       <canvas id="capeC" width="384" height="192"></canvas>
       <div class="tip" id="capeTip"></div>
     </div>
-    <div style="margin-top:8px;text-align:center">
-      <label class="fl"><span>上传披风图片</span><input type="file" id="capeFile" accept="image/*"></label>
+    <div style="margin-top:8px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <label class="fl"><span>📁 上传披风图片</span><input type="file" id="capeFile" accept="image/*"></label>
     </div>
   </div>
   <div style="display:flex;align-items:center;font-size:36px;color:#ffd700">&rarr;</div>
@@ -60,8 +72,8 @@ canvas{display:block;image-rendering:pixelated}
       <canvas id="skinC" width="384" height="384"></canvas>
       <div class="tip" id="skinTip"></div>
     </div>
-    <div style="margin-top:8px;text-align:center">
-      <label class="fl"><span>上传基础皮肤（可选）</span><input type="file" id="skinFile" accept="image/*"></label>
+    <div style="margin-top:8px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <label class="fl"><span>📁 上传基础皮肤（可选）</span><input type="file" id="skinFile" accept="image/*"></label>
     </div>
   </div>
 </div>
@@ -377,8 +389,8 @@ function toggleGrid() { showGrid = !showGrid; render(); }
 function setS(m) { document.getElementById('status').textContent = m; }
 
 // ========== 文件上传：披风 ==========
-document.getElementById('capeFile').addEventListener('change', function(e) {
-  var f = e.target.files[0]; if (!f) return;
+function handleCapeFile(f) {
+  if (!f) return;
   var img = new Image();
   img.onload = function() {
     var c = document.createElement('canvas');
@@ -410,11 +422,15 @@ document.getElementById('capeFile').addEventListener('change', function(e) {
     renderCape();
   };
   img.src = URL.createObjectURL(f);
+}
+
+document.getElementById('capeFile').addEventListener('change', function(e) {
+  handleCapeFile(e.target.files[0]);
 });
 
 // ========== 文件上传：皮肤 ==========
-document.getElementById('skinFile').addEventListener('change', function(e) {
-  var f = e.target.files[0]; if (!f) return;
+function handleSkinFile(f) {
+  if (!f) return;
   var img = new Image();
   img.onload = function() {
     var w = img.width, h = img.height;
@@ -444,6 +460,10 @@ document.getElementById('skinFile').addEventListener('change', function(e) {
     render();
   };
   img.src = URL.createObjectURL(f);
+}
+
+document.getElementById('skinFile').addEventListener('change', function(e) {
+  handleSkinFile(e.target.files[0]);
 });
 
 // ========== 鼠标悬停提示 ==========
